@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Демонстрация Массивов</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for drag-and-drop feedback and responsive sizing */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light gray background */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .array-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); /* Responsive grid for cells */
+            gap: 8px;
+            border: 2px solid #3b82f6; /* Blue border for array */
+            border-radius: 12px;
+            background-color: #e0f2fe; /* Light blue background */
+            padding: 16px;
+            min-height: 120px;
+            width: 100%;
+            max-width: 800px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .array-cell {
+            width: 80px;
+            height: 80px;
+            background-color: #ffffff;
+            border: 1px dashed #9ca3af; /* Dashed border for empty cells */
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column; /* Allow index and item to stack/position */
+            justify-content: center;
+            align-items: center;
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #4b5563;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+            position: relative; /* For positioning index */
+        }
+
+        .array-cell-index {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            font-size: 0.75rem; /* Smaller font for index */
+            color: #6b7280; /* Gray color for index */
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 2px 5px;
+            border-radius: 4px;
+            z-index: 10; /* Ensure index is above item background */
+        }
+
+        .array-cell.has-item {
+            border: 1px solid #60a5fa; /* Solid border for cells with items */
+            background-color: #dbeafe; /* Slightly darker background for occupied cells */
+        }
+
+        .draggable-item {
+            width: 70px; /* Slightly smaller than cell to fit */
+            height: 70px;
+            background-color: #10b981; /* Green background for items */
+            color: white;
+            border-radius: 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: grab;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: transform 0.1s ease-out;
+            touch-action: none; /* Prevent browser touch actions for better dragging */
+            user-select: none; /* Prevent text selection during drag */
+            position: relative; /* Allow item to be centered within cell */
+        }
+
+        .draggable-item:active {
+            cursor: grabbing;
+        }
+
+        .draggable-item.dragging {
+            opacity: 0.7;
+            transform: scale(1.05);
+        }
+
+        .array-cell.drag-over {
+            background-color: #bfdbfe; /* Highlight on drag over */
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px #bfdbfe;
+        }
+
+        .outside-container {
+            border: 2px dashed #6b7280; /* Dashed border for outside area */
+            background-color: #f3f4f6;
+            border-radius: 12px;
+            padding: 20px;
+            min-height: 150px;
+            width: 100%;
+            max-width: 800px;
+            margin-top: 20px;
+            position: relative; /* For absolutely positioned elements */
+            overflow: hidden; /* Hide elements that go too far */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .outside-item {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%); /* Center initially */
+        }
+
+        /* Buttons styling */
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #2563eb;
+            transform: translateY(-1px);
+        }
+        .btn-primary:active {
+            background-color: #1d4ed8;
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background-color: #6ee7b7; /* Light green */
+            color: #10b981; /* Darker green text */
+        }
+        .btn-secondary:hover {
+            background-color: #34d399;
+            transform: translateY(-1px);
+        }
+        .btn-secondary:active {
+            background-color: #059669;
+            transform: translateY(0);
+        }
+
+        /* Context Menu Styles */
+        #contextMenu {
+            position: absolute;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            display: none; /* Hidden by default */
+            padding: 5px 0;
+            min-width: 120px;
+        }
+
+        #contextMenu button {
+            display: block;
+            width: 100%;
+            padding: 8px 15px;
+            text-align: left;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #333;
+            transition: background-color 0.2s;
+        }
+
+        #contextMenu button:hover {
+            background-color: #f0f0f0;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .array-cell, .draggable-item {
+                width: 60px;
+                height: 60px;
+                font-size: 1rem;
+            }
+            .array-container {
+                grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+                padding: 12px;
+            }
+            .outside-container {
+                padding: 15px;
+            }
+            .btn {
+                padding: 8px 16px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center p-5 min-h-screen">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Демонстрация Массивов</h1>
+
+    <div class="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4 mb-8 w-full max-w-lg">
+        <div class="flex items-center space-x-2 w-full md:w-auto">
+            <label for="arraySize" class="text-lg text-gray-700 whitespace-nowrap">Размер массива:</label>
+            <input type="number" id="arraySize" value="8" min="1" max="20"
+                   class="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 w-20 text-center">
+            <button id="updateArrayBtn" class="btn btn-primary">Обновить</button>
+        </div>
+    </div>
+
+    <div id="arrayContainer" class="array-container">
+        <!-- Array cells will be generated here -->
+    </div>
+
+    <h2 class="text-2xl font-bold text-gray-800 mt-8 mb-4">Элементы вне массива</h2>
+    <div id="outsideContainer" class="outside-container">
+        <!-- Elements created or dragged out will appear here -->
+    </div>
+
+    <!-- Moved the "Создать элемент" section here -->
+    <div class="flex items-center space-x-2 mt-8 mb-4 w-full md:w-auto max-w-lg">
+        <label for="newElementValue" class="text-lg text-gray-700 whitespace-nowrap">Значение элемента:</label>
+        <input type="text" id="newElementValue" placeholder="Новое значение"
+               class="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 flex-grow">
+        <button id="createElementBtn" class="btn btn-secondary flex-shrink-0">Создать элемент</button>
+    </div>
+
+    <!-- Custom Context Menu -->
+    <div id="contextMenu" class="hidden">
+        <button id="deleteItemBtn">Удалить элемент</button>
+    </div>
+
+    <script>
+        const arraySizeInput = document.getElementById('arraySize');
+        const updateArrayBtn = document.getElementById('updateArrayBtn');
+        const createElementBtn = document.getElementById('createElementBtn');
+        const newElementValueInput = document.getElementById('newElementValue');
+        const arrayContainer = document.getElementById('arrayContainer');
+        const outsideContainer = document.getElementById('outsideContainer');
+        const contextMenu = document.getElementById('contextMenu');
+        const deleteItemBtn = document.getElementById('deleteItemBtn');
+
+        let currentDraggedItem = null;
+        let nextElementAutoValue = 101;
+        let contextMenuItemTarget = null; // Stores the element that was right-clicked
+
+        /**
+         * Generates the array cells based on the specified size.
+         * If items exist, attempts to re-place them into the new array.
+         */
+        function generateArray(size) {
+            arrayContainer.innerHTML = ''; // Clear existing cells
+            // Collect all current draggable items before clearing/recreating cells
+            const existingItems = Array.from(document.querySelectorAll('.draggable-item')).map(item => ({
+                element: item,
+                value: item.textContent
+            }));
+            const placedItems = new Set(); // Keep track of items already placed in new array
+
+            for (let i = 0; i < size; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('array-cell', 'rounded-lg');
+                cell.dataset.index = i; // Store index for reference
+                cell.dataset.hasItem = 'false'; // Track if cell has an item
+
+                // Add index display
+                const indexSpan = document.createElement('span');
+                indexSpan.classList.add('array-cell-index');
+                indexSpan.textContent = `[${i}]`;
+                cell.appendChild(indexSpan);
+
+                // Allow drops on cells
+                cell.addEventListener('dragover', (e) => {
+                    e.preventDefault(); // Allow drop
+                    if (cell.dataset.hasItem === 'false') {
+                         cell.classList.add('drag-over');
+                    }
+                });
+                cell.addEventListener('dragleave', () => {
+                    cell.classList.remove('drag-over');
+                });
+                cell.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    cell.classList.remove('drag-over');
+                    if (currentDraggedItem && cell.dataset.hasItem === 'false') {
+                        // Remove item from its previous parent (if any)
+                        if (currentDraggedItem.parentNode) {
+                            currentDraggedItem.parentNode.classList.remove('has-item');
+                            currentDraggedItem.parentNode.dataset.hasItem = 'false';
+                        }
+                        cell.appendChild(currentDraggedItem);
+                        cell.classList.add('has-item');
+                        cell.dataset.hasItem = 'true';
+                        currentDraggedItem.style.position = 'static'; // Reset position for array items
+                        currentDraggedItem.style.transform = 'none'; // Reset transform
+                    }
+                });
+
+                arrayContainer.appendChild(cell);
+            }
+
+            // Attempt to re-place existing items into the new array
+            const newCells = arrayContainer.querySelectorAll('.array-cell');
+            existingItems.forEach(itemInfo => {
+                let placed = false;
+                for (let i = 0; i < newCells.length; i++) {
+                    const cell = newCells[i];
+                    if (cell.dataset.hasItem === 'false') {
+                        cell.appendChild(itemInfo.element);
+                        cell.classList.add('has-item');
+                        cell.dataset.hasItem = 'true';
+                        itemInfo.element.style.position = 'static';
+                        itemInfo.element.style.transform = 'none';
+                        placed = true;
+                        placedItems.add(itemInfo.element);
+                        break;
+                    }
+                }
+                // If item couldn't be placed in the array (e.g., array shrunk), move it to outside container
+                if (!placed && !placedItems.has(itemInfo.element)) {
+                    placeElementOutside(itemInfo.element);
+                }
+            });
+        }
+
+        /**
+         * Creates a new draggable element with a unique value.
+         * @param {string|number} value - The value of the element.
+         * @returns {HTMLElement} The created draggable element.
+         */
+        function createDraggableElement(value) {
+            const item = document.createElement('div');
+            item.classList.add('draggable-item', 'rounded');
+            item.textContent = value;
+            item.draggable = true; // Make it draggable
+            item.id = `item-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`; // More unique ID
+
+            // Drag event listeners
+            item.addEventListener('dragstart', (e) => {
+                currentDraggedItem = item;
+                item.classList.add('dragging');
+                e.dataTransfer.setData('text/plain', item.id);
+            });
+
+            item.addEventListener('dragend', () => {
+                item.classList.remove('dragging');
+                currentDraggedItem = null;
+            });
+
+            // Context menu event listener (right-click)
+            item.addEventListener('contextmenu', (e) => {
+                e.preventDefault(); // Prevent default browser context menu
+                contextMenuItemTarget = item; // Store reference to the clicked item
+                contextMenu.style.display = 'block';
+                contextMenu.style.left = `${e.clientX + window.scrollX}px`;
+                contextMenu.style.top = `${e.clientY + window.scrollY}px`;
+            });
+
+            return item;
+        }
+
+        /**
+         * Places an element randomly within the 'outside' container.
+         * @param {HTMLElement} element - The element to place.
+         */
+        function placeElementOutside(element) {
+            // Remove from old parent's has-item class/dataset if it was in an array cell
+            if (element.parentNode && element.parentNode.classList.contains('array-cell')) {
+                element.parentNode.classList.remove('has-item');
+                element.parentNode.dataset.hasItem = 'false';
+            }
+
+            outsideContainer.appendChild(element);
+            element.style.position = 'absolute';
+
+            // Random positioning within the outside container
+            // Ensure element is fully visible within the container
+            const containerWidth = outsideContainer.clientWidth;
+            const containerHeight = outsideContainer.clientHeight;
+            const itemWidth = element.offsetWidth;
+            const itemHeight = element.offsetHeight;
+
+            // Calculate max positions to keep element inside container
+            const maxX = Math.max(0, containerWidth - itemWidth);
+            const maxY = Math.max(0, containerHeight - itemHeight);
+
+            const randomX = Math.random() * maxX;
+            const randomY = Math.random() * maxY;
+
+            element.style.left = `${randomX}px`;
+            element.style.top = `${randomY}px`;
+        }
+
+        // Event Listeners for UI controls
+        updateArrayBtn.addEventListener('click', () => {
+            const size = parseInt(arraySizeInput.value);
+            if (!isNaN(size) && size >= 1 && size <= 20) {
+                generateArray(size);
+            } else {
+                console.log('Пожалуйста, введите число от 1 до 20 для размера массива.');
+            }
+        });
+
+        createElementBtn.addEventListener('click', () => {
+            let value = newElementValueInput.value.trim();
+            if (value === '') {
+                // If input is empty, use the auto-incremented value
+                value = nextElementAutoValue++;
+            } else {
+                // If a value is provided, clear the input after creation
+                newElementValueInput.value = '';
+            }
+            const newElement = createDraggableElement(value);
+            placeElementOutside(newElement);
+        });
+
+        // Allow drops on the outside container
+        outsideContainer.addEventListener('dragover', (e) => {
+            e.preventDefault(); // Allow drop
+            outsideContainer.classList.add('drag-over');
+        });
+
+        outsideContainer.addEventListener('dragleave', () => {
+            outsideContainer.classList.remove('drag-over');
+        });
+
+        outsideContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            outsideContainer.classList.remove('drag-over');
+            if (currentDraggedItem) {
+                placeElementOutside(currentDraggedItem);
+            }
+        });
+
+        // --- Context Menu Logic ---
+        deleteItemBtn.addEventListener('click', () => {
+            if (contextMenuItemTarget) {
+                // If the item was in an array cell, reset the cell's state
+                if (contextMenuItemTarget.parentNode && contextMenuItemTarget.parentNode.classList.contains('array-cell')) {
+                    contextMenuItemTarget.parentNode.classList.remove('has-item');
+                    contextMenuItemTarget.parentNode.dataset.hasItem = 'false';
+                }
+                contextMenuItemTarget.remove(); // Remove the element from the DOM
+                contextMenuItemTarget = null; // Clear the reference
+            }
+            contextMenu.style.display = 'none'; // Hide the menu
+        });
+
+        // Hide context menu when clicking anywhere else on the document
+        document.addEventListener('click', (e) => {
+            if (!contextMenu.contains(e.target) && !e.target.classList.contains('draggable-item')) {
+                contextMenu.style.display = 'none';
+            }
+        });
+
+        document.addEventListener('contextmenu', (e) => {
+            // Hide context menu if right-clicking outside a draggable item
+            if (!e.target.classList.contains('draggable-item')) {
+                contextMenu.style.display = 'none';
+            }
+        });
+        // --- End Context Menu Logic ---
+
+
+        // Initialize the array on page load
+        window.onload = () => {
+            generateArray(parseInt(arraySizeInput.value));
+        };
+    </script>
+</body>
+</html>
+
